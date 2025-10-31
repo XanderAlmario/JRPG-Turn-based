@@ -1,0 +1,26 @@
+STEPS FOR BATTLE HANDLER
+0.5 Add a background for visual aid
+1. Create prefabs for the player's units and enemies (three of each; 
+it's fine if it'sempty or just has a sprite, it can be updated 
+later on)
+1.5 You can double click the prefab to go into editing mode
+for that prefab
+2. Create two empty objects, one named playerBT(BT for battle station)
+and another enemyBT, where playerBT will be on the left and enemyBT
+on the right
+2.5 You can use the icon trick to help visually see where it is
+(the cube left to the name of the object when selected)
+2. Add the Unit script to each unit and set their
+serialize fields accordingly (health, attack, etc.)
+3. Create an object called BattleHandler and add the 
+BattleHandler script as its component and set their serialize
+fields accordingly
+4. With how the BattleHandler script works, it will create the player's
+units as a child of playerBT and the enemies as a child of enemyBT,
+so their position will be based on their respective BTs. Adjust the 
+position of each prefab accordingly
+4.5 For example, if I want one of the units to be at exactly where
+the BT is, then I set their position to (0, 0). If I want another unit
+to be behind the first and a little above, then I would set that prefab's
+position to something like (-2, 2). (Ask Xander for help if ever he sucks
+at words)
