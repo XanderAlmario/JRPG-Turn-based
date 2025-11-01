@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
+/*BattleState has the values of each possible state
+in the game, which helps the battle handler understand
+what action to take*/
 public enum BattleState
 {
     START, PLAYERTURN, ENEMYTURN, WON, LOST
@@ -27,12 +30,17 @@ public class BattleHandler : MonoBehaviour
     
     public BattleState state;
 
+    // Sets the BattleState to START and runs SetupBattle 
     void Start()
     {
         state = BattleState.START;
         StartCoroutine(SetupBattle());
     }
 
+    /* Sets up all the units in the field and gives the turn to the 
+    fastest unit on the field. Each unit is instantiated and put in
+    a list called unitsInField, then that list is sorted based on the
+    speed of each unit in it in descending order (highest to lowest).*/
     IEnumerator SetupBattle()
     {
         setUpUnit(player1PF, playerBT, true);
@@ -48,6 +56,10 @@ public class BattleHandler : MonoBehaviour
         takeTurn();
     }
 
+    /* Gives the turn to either the player or the enemy based on
+    who is next in the turn order. The turn order is determined
+    by the speed of each unit. The unit with the highest speed goes
+    first and the least goes last.*/
     private void takeTurn()
     {
         Unit actingUnit = unitsInField[turn];
@@ -62,11 +74,20 @@ public class BattleHandler : MonoBehaviour
             state = BattleState.ENEMYTURN;
             StartCoroutine(EnemyAction(actingUnit));
         }
-        
+
+        /*Determines what the next turn index will be. if turn is
+        still within the bounds of how many units there are in the
+        field, it is implemented by one. If it is already equal to
+        or greater than how many units are on the field (zero index),
+        then it loops around to go from the top of the list*/
         if (turn < unitsInField.Count - 1) turn++;
-        else turn = 0;
+        else if (turn >= unitsInField.Count) turn = 0;
     }
 
+    /* Setups up the unit by instantiating it into the scene and
+    puts the unit in their respective lists. If a player's unit was
+    made, it goes into the lists playerUnits and unitsInField. If an
+    enemy was made, it ges into the lists enemyUnits and unitsInField*/
     private void setUpUnit(GameObject unit, Transform BT, bool isPlayer)
     {
         GameObject createdUnit = Instantiate(unit, BT);
@@ -84,6 +105,9 @@ public class BattleHandler : MonoBehaviour
         }
     }
 
+    /* Carries out the player's action based on the inputs made.
+    For now, it takes into account what keyboard inputs are made
+    to select the actions*/
     IEnumerator PlayerAction(Unit player)
     {
         bool inputtedAction = false, inputtedTarget = false, doubled = false;
@@ -92,6 +116,7 @@ public class BattleHandler : MonoBehaviour
         Debug.Log("Waiting for action");
         while (!inputtedAction)
         {
+            //If Q is pressed, the acting unit does an attack
             if (Input.GetKeyDown(KeyCode.Q))
             {
                 Debug.Log("Q was pressed: Attack");
@@ -99,6 +124,8 @@ public class BattleHandler : MonoBehaviour
                 doubled = false;
                 inputtedAction = true;
             }
+            //If W is pressed, the acting unit does an attack
+            //with double damage
             else if (Input.GetKeyDown(KeyCode.W))
             {
                 Debug.Log("W was pressed: Attack");
@@ -106,6 +133,7 @@ public class BattleHandler : MonoBehaviour
                 doubled = true;
                 inputtedAction = true;
             }
+            //If A is pressed, the acting unit heals
             else if (Input.GetKeyDown(KeyCode.A))
             {
                 Debug.Log("A was pressed: Heal");
@@ -113,6 +141,8 @@ public class BattleHandler : MonoBehaviour
                 doubled = false;
                 inputtedAction = true;
             }
+            //If S is pressed, the acting unit heals 
+            //with double the amount
             else if (Input.GetKeyDown(KeyCode.S))
             {
                 Debug.Log("S was pressed: Heal");
@@ -125,18 +155,24 @@ public class BattleHandler : MonoBehaviour
         }
         while (!inputtedTarget)
         {
+            //If keyboard 1 is pressed, the acting unit targets
+            //the unit at index 0
             if (Input.GetKeyDown(KeyCode.Alpha1))
             {
                 Debug.Log("Target 1 was selected");
                 target = 0;
                 inputtedTarget = true;
             }
+            //If keyboard 2 is pressed, the acting unit targets
+            //the unit at index 1
             else if (Input.GetKeyDown(KeyCode.Alpha2))
             {
                 Debug.Log("Target 2 was selected");
                 target = 1;
                 inputtedTarget = true;
             }
+            //If keyboard 3 is pressed, the acting unit targets
+            //the unit at index 2
             else if (Input.GetKeyDown(KeyCode.Alpha3))
             {
                 Debug.Log("Target 3 was selected");
@@ -146,21 +182,30 @@ public class BattleHandler : MonoBehaviour
             yield return null;
         }
 
+        // Runs the Attack action
         if (action == 1) StartCoroutine(Attack(player, enemyUnits[target], doubled));
+        // Runs the Heal action
         else if (action == 2) StartCoroutine(Heal(player, playerUnits[target], doubled));
     }
 
+    /* Lets the enemy take an action between attacking or healing.
+    For now, the enemies randomly chooses between attacking or
+    healing, and targeting*/
     IEnumerator EnemyAction(Unit enemy)
     {
         yield return new WaitForSeconds(1f);
         int action = Random.Range(1, 3);
-        int target = Random.Range(0, playerUnits.Count);
+        int attackTarget = Random.Range(0, playerUnits.Count);
+        int healTarget = Random.Range(0, enemyUnits.Count);
         bool doubled = Random.Range(0, 2) == 1;
 
-        if (action == 1) StartCoroutine(Attack(enemy, playerUnits[target], doubled));
-        else if (action == 2) StartCoroutine(Heal(enemy, enemyUnits[target], doubled));
+        if (action == 1) StartCoroutine(Attack(enemy, playerUnits[attackTarget], doubled));
+        else if (action == 2) StartCoroutine(Heal(enemy, enemyUnits[healTarget], doubled));
     }
-    
+
+    /* Runs the healing action. First checks whether or not the
+    healed amount should be doubled, then runs the getHealed
+    function of the targetted unit*/
     IEnumerator Heal(Unit healer, Unit target, bool doubled)
     {
         int healAmount = 1;
@@ -172,6 +217,14 @@ public class BattleHandler : MonoBehaviour
         takeTurn();
     }
 
+    /* Runs the attacking action. First checks whether or not the
+    damage dealt should be doubled, then runs the takeDamage
+    function of the targetted unit. If the function returns true
+    (meaning the targetted unit's HP went to 0 or below), then it
+    is removed from its respective lists and is deactivated in the
+    scene. Finally, it runs the checkUnits method to see if the units
+    of one side of the battle lost all its units. If so, the game ends.
+    If not, the game continues and the next turn happens*/
     IEnumerator Attack(Unit attacker, Unit target, bool doubled)
     {
         int dmg = 1;
@@ -193,14 +246,20 @@ public class BattleHandler : MonoBehaviour
                 unitsInField.Remove(target);
                 playerUnits.Remove(target);
             }
+            if (turn != unitsInField.IndexOf(attacker) + 1) turn--;
             target.self.SetActive(false);
-            turn--;
         }
         bool endGame = checkUnits();
         if (!endGame) takeTurn();
         else if (endGame) EndBattle();
     }
 
+    /* Checks whether one side (either the player or the enemy) has
+    lost all their units. If the player's units are depleted, the
+    BattleState is set to LOST and returns true, meaning the game
+    has ended. If the enemy's units are depleted, the BattleState is
+    set to WON instead and returns true. If each side still has at
+    least one unit, the game continues*/
     private bool checkUnits()
     {
         if (playerUnits.Count == 0)
@@ -216,6 +275,8 @@ public class BattleHandler : MonoBehaviour
         return false;
     }
     
+    /* Shows whether the player won or lost the battle.
+    For now, it shows up in the debug console*/
     private void EndBattle()
     {
         if (state == BattleState.WON) Debug.Log("You Won!");
