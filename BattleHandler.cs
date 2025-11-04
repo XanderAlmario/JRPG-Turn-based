@@ -81,7 +81,7 @@ public class BattleHandler : MonoBehaviour
         or greater than how many units are on the field (zero index),
         then it loops around to go from the top of the list*/
         if (turn < unitsInField.Count - 1) turn++;
-        else if (turn >= unitsInField.Count) turn = 0;
+        else turn = 0;
     }
 
     /* Setups up the unit by instantiating it into the scene and
@@ -194,13 +194,57 @@ public class BattleHandler : MonoBehaviour
     IEnumerator EnemyAction(Unit enemy)
     {
         yield return new WaitForSeconds(1f);
-        int action = Random.Range(1, 3);
-        int attackTarget = Random.Range(0, playerUnits.Count);
-        int healTarget = Random.Range(0, enemyUnits.Count);
         bool doubled = Random.Range(0, 2) == 1;
+        List<int> playerHalf = new List<int>();
+        List<int> enemyHalf = new List<int>();
+        List<int> enemyDamaged = new List<int>();
 
-        if (action == 1) StartCoroutine(Attack(enemy, playerUnits[attackTarget], doubled));
-        else if (action == 2) StartCoroutine(Heal(enemy, enemyUnits[healTarget], doubled));
+        for (int i = 0; i < playerUnits.Count; i++)
+        {
+            if (playerUnits[i].currentHP < (playerUnits[i].maxHP / 2))
+            {
+                playerHalf.Add(i);
+            }
+        }
+
+        for (int j = 0; j < enemyUnits.Count; j++)
+        {
+            if(enemyUnits[j].currentHP < enemyUnits[j].maxHP)
+            {
+                enemyDamaged.Add(j);
+                if (enemyUnits[j].currentHP < (enemyUnits[j].maxHP / 2))
+                {
+                    enemyHalf.Add(j);
+                }
+            }
+        }
+
+        if (playerHalf.Count > 0)
+        {
+            int playerHalfIndex = Random.Range(0, playerHalf.Count);
+            int attackTarget = playerHalf[playerHalfIndex];
+            StartCoroutine(Attack(enemy, playerUnits[attackTarget], doubled));
+        }
+        else if (enemyHalf.Count > 0)
+        {
+            int enemyHalfIndex = Random.Range(0, enemyHalf.Count);
+            int healTarget = enemyHalf[enemyHalfIndex];
+            StartCoroutine(Heal(enemy, enemyUnits[healTarget], doubled)); 
+        }
+        else if (enemyDamaged.Count > 0)
+        {
+            int action = Random.Range(1, 3);
+            int enemyDamagedIndex = Random.Range(0, enemyDamaged.Count);
+            int healTarget = enemyDamaged[enemyDamagedIndex];
+            int attackTarget = Random.Range(0, playerUnits.Count);
+            if (action == 1) StartCoroutine(Attack(enemy, playerUnits[attackTarget], doubled));
+            else if (action == 2) StartCoroutine(Heal(enemy, enemyUnits[healTarget], doubled));
+        }
+        else
+        {
+            int attackTarget = Random.Range(0, playerUnits.Count);
+            StartCoroutine(Attack(enemy, playerUnits[attackTarget], doubled));
+        }
     }
 
     /* Runs the healing action. First checks whether or not the
@@ -214,6 +258,7 @@ public class BattleHandler : MonoBehaviour
         yield return new WaitForSeconds(1f);
 
         target.getHealed((healer.currentHP / 5) * healAmount);
+        Debug.Log(healer.name + " healed " + target.name);
         takeTurn();
     }
 
