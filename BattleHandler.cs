@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
+
 /*BattleState has the values of each possible state
 in the game, which helps the battle handler understand
 what action to take*/
@@ -114,6 +115,7 @@ public class BattleHandler : MonoBehaviour
         int action = -1, target = -1;
         Debug.Log("It's " + player.name + " turn");
         Debug.Log("Waiting for action");
+        int swcheck = 0;
         while (!inputtedAction)
         {
             //If Q is pressed, the acting unit does an attack
@@ -161,6 +163,7 @@ public class BattleHandler : MonoBehaviour
             {
                 Debug.Log("Target 1 was selected");
                 target = 0;
+                swcheck = StrengthWeaknessCheck(player, enemyUnits[target]);
                 inputtedTarget = true;
             }
             //If keyboard 2 is pressed, the acting unit targets
@@ -169,6 +172,7 @@ public class BattleHandler : MonoBehaviour
             {
                 Debug.Log("Target 2 was selected");
                 target = 1;
+                swcheck = StrengthWeaknessCheck(player, enemyUnits[target]);
                 inputtedTarget = true;
             }
             //If keyboard 3 is pressed, the acting unit targets
@@ -177,13 +181,14 @@ public class BattleHandler : MonoBehaviour
             {
                 Debug.Log("Target 3 was selected");
                 target = 2;
+                swcheck = StrengthWeaknessCheck(player, enemyUnits[target]);
                 inputtedTarget = true;
             }
             yield return null;
         }
 
         // Runs the Attack action
-        if (action == 1) StartCoroutine(Attack(player, enemyUnits[target], doubled));
+        if (action == 1) StartCoroutine(Attack(player, enemyUnits[target], doubled, swcheck));
         // Runs the Heal action
         else if (action == 2) StartCoroutine(Heal(player, playerUnits[target], doubled));
     }
@@ -194,10 +199,11 @@ public class BattleHandler : MonoBehaviour
     IEnumerator EnemyAction(Unit enemy)
     {
         yield return new WaitForSeconds(1f);
-        bool doubled = Random.Range(0, 2) == 1;
+        bool doubled = false;
         List<int> playerHalf = new List<int>();
         List<int> enemyHalf = new List<int>();
         List<int> enemyDamaged = new List<int>();
+
 
         for (int i = 0; i < playerUnits.Count; i++)
         {
@@ -223,13 +229,20 @@ public class BattleHandler : MonoBehaviour
         {
             int playerHalfIndex = Random.Range(0, playerHalf.Count);
             int attackTarget = playerHalf[playerHalfIndex];
-            StartCoroutine(Attack(enemy, playerUnits[attackTarget], doubled));
+            Unit target = playerUnits[attackTarget];
+            int swcheck = StrengthWeaknessCheck(enemy, target);
+            StartCoroutine(Attack(enemy, target, doubled, swcheck));
         }
         else if (enemyHalf.Count > 0)
         {
+            int action = Random.Range(1, 4);
             int enemyHalfIndex = Random.Range(0, enemyHalf.Count);
             int healTarget = enemyHalf[enemyHalfIndex];
-            StartCoroutine(Heal(enemy, enemyUnits[healTarget], doubled)); 
+            int attackTarget = Random.Range(0, playerUnits.Count);
+            Unit target = playerUnits[attackTarget];
+            int swcheck = StrengthWeaknessCheck(enemy, target);
+            if (action == 1) StartCoroutine(Attack(enemy, target, doubled, swcheck));
+            else if (action == 2 || action == 3) StartCoroutine(Heal(enemy, enemyUnits[healTarget], doubled));
         }
         else if (enemyDamaged.Count > 0)
         {
@@ -237,13 +250,17 @@ public class BattleHandler : MonoBehaviour
             int enemyDamagedIndex = Random.Range(0, enemyDamaged.Count);
             int healTarget = enemyDamaged[enemyDamagedIndex];
             int attackTarget = Random.Range(0, playerUnits.Count);
-            if (action == 1) StartCoroutine(Attack(enemy, playerUnits[attackTarget], doubled));
+            Unit target = playerUnits[attackTarget];
+            int swcheck = StrengthWeaknessCheck(enemy, target);
+            if (action == 1) StartCoroutine(Attack(enemy, target, doubled, swcheck));
             else if (action == 2) StartCoroutine(Heal(enemy, enemyUnits[healTarget], doubled));
         }
         else
         {
             int attackTarget = Random.Range(0, playerUnits.Count);
-            StartCoroutine(Attack(enemy, playerUnits[attackTarget], doubled));
+            Unit target = playerUnits[attackTarget];
+            int swcheck = StrengthWeaknessCheck(enemy, target);
+            StartCoroutine(Attack(enemy, target, doubled, swcheck));
         }
     }
 
@@ -270,12 +287,21 @@ public class BattleHandler : MonoBehaviour
     scene. Finally, it runs the checkUnits method to see if the units
     of one side of the battle lost all its units. If so, the game ends.
     If not, the game continues and the next turn happens*/
-    IEnumerator Attack(Unit attacker, Unit target, bool doubled)
+    IEnumerator Attack(Unit attacker, Unit target, bool doubled, int swcheck)
     {
-        int dmg = 1;
-        if (doubled) dmg = 2;
+        double dmg = 1;
+
+        if (swcheck == 1)
+        {
+            dmg *= 2;
+        }
+        else if (swcheck == 2)
+        {
+            dmg /= 2;
+        }
+        
         bool isDead = target.takeDamage(attacker.attack * dmg);
-        Debug.Log(attacker.name + " attacked " + target.name);
+        Debug.Log(attacker.name + " attacked " + target.name + " for " + dmg);
 
         yield return new WaitForSeconds(1f);
 
@@ -319,7 +345,7 @@ public class BattleHandler : MonoBehaviour
         }
         return false;
     }
-    
+
     /* Shows whether the player won or lost the battle.
     For now, it shows up in the debug console*/
     private void EndBattle()
@@ -327,4 +353,53 @@ public class BattleHandler : MonoBehaviour
         if (state == BattleState.WON) Debug.Log("You Won!");
         else if (state == BattleState.LOST) Debug.Log("You Lost...");
     }
+    
+    /* Checks if the target is weak or strong or no anything to the target.
+    If swcheck = 0, target is neither weak or strong to the attacker.
+    If swcheck = 1, target is weak to the attacker.
+    If swcheck = 3, target is strong to the attacker.*/
+    private int StrengthWeaknessCheck(Unit attacker, Unit target)
+    {
+        string earth = "Earth";
+        string air = "Air";
+        string water = "Water";
+        string fire = "Fire";
+        int swcheck = 0;
+        
+        if ((Equals(attacker.element, earth)
+        && Equals(target.element, water))
+        ||
+        (Equals(attacker.element, water)
+        && Equals(target.element, fire))
+        ||
+        (Equals(attacker.element, fire)
+        && Equals(target.element, air))
+        ||
+        (Equals(attacker.element, air)
+        && Equals(target.element, earth)))
+        {
+            swcheck = 1;
+        }
+        else if ((Equals(attacker.element, fire)
+        && Equals(target.element, water))
+        ||
+        (Equals(attacker.element, air)
+        && Equals(target.element, fire))
+        ||
+        (Equals(attacker.element, earth)
+        && Equals(target.element, air))
+        ||
+        (Equals(attacker.element, water)
+        && Equals(target.element, earth)))
+        {
+            swcheck = 2;
+        }
+        else
+        {
+            swcheck = 0;
+        }
+
+        return swcheck;
+    }
+
 }
